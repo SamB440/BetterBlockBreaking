@@ -1,5 +1,6 @@
 name: BetterBlockBreaking
-main: com.github.cheesesoftware.BetterBlockBreaking.BetterBlockBreaking
-version: 6.6.0
+main: com.github.cheesesoftware.betterblockbreaking.BetterBlockBreaking
+version: "${version}"
 depend: [ProtocolLib]
 softdepend: [WorldGuard, Slimefun]
+api-version: "1.16"

@@ -1,37 +1,36 @@
-package com.github.cheesesoftware.BetterBlockBreaking;
+package com.github.cheesesoftware.betterblockbreaking.block;
 
-import java.lang.reflect.Field;
-import java.util.Date;
-
-import net.minecraft.server.v1_13_R1.BlockPosition;
-import net.minecraft.server.v1_13_R1.EntityChicken;
-import net.minecraft.server.v1_13_R1.EntityLiving;
-import net.minecraft.server.v1_13_R1.IBlockAccess;
-import net.minecraft.server.v1_13_R1.IBlockData;
-import net.minecraft.server.v1_13_R1.MinecraftKey;
-import net.minecraft.server.v1_13_R1.PacketPlayOutBlockBreakAnimation;
-import net.minecraft.server.v1_13_R1.PacketPlayOutBlockChange;
-import net.minecraft.server.v1_13_R1.SoundEffect;
-import net.minecraft.server.v1_13_R1.SoundEffectType;
-import net.minecraft.server.v1_13_R1.TileEntity;
-import net.minecraft.server.v1_13_R1.WorldServer;
-
+import com.github.cheesesoftware.betterblockbreaking.BetterBlockBreaking;
+import com.github.cheesesoftware.betterblockbreaking.task.KeepBlockDamageAliveTask;
+import net.minecraft.server.v1_16_R3.BlockPosition;
+import net.minecraft.server.v1_16_R3.EntityChicken;
+import net.minecraft.server.v1_16_R3.EntityLiving;
+import net.minecraft.server.v1_16_R3.EntityTypes;
+import net.minecraft.server.v1_16_R3.IBlockData;
+import net.minecraft.server.v1_16_R3.PacketPlayOutBlockBreakAnimation;
+import net.minecraft.server.v1_16_R3.PacketPlayOutBlockChange;
+import net.minecraft.server.v1_16_R3.TileEntity;
+import net.minecraft.server.v1_16_R3.WorldServer;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
-import org.bukkit.craftbukkit.v1_13_R1.CraftServer;
-import org.bukkit.craftbukkit.v1_13_R1.CraftWorld;
-import org.bukkit.craftbukkit.v1_13_R1.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_16_R3.CraftServer;
+import org.bukkit.craftbukkit.v1_16_R3.CraftWorld;
+import org.bukkit.craftbukkit.v1_16_R3.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
 import org.bukkit.scheduler.BukkitTask;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Date;
 
 public class DamageBlock {
 
-    private Location l;
+    private final Location location;
     private Date dateDamaged = null;
     private Date lastFade = null;
     private float damage = 0;
@@ -42,12 +41,12 @@ public class DamageBlock {
 
     // public int showCurrentDamageTaskId = -1;
 
-    public DamageBlock(Location l) {
-        this.l = l;
+    public DamageBlock(Location location) {
+        this.location = location;
     }
 
     public Location getLocation() {
-        return this.l;
+        return this.location;
     }
 
     public Date getDamageDate() {
@@ -76,19 +75,19 @@ public class DamageBlock {
     }
 
     public World getWorld() {
-        return this.l.getWorld();
+        return this.location.getWorld();
     }
 
     public int getX() {
-        return this.l.getBlockX();
+        return this.location.getBlockX();
     }
 
     public int getY() {
-        return this.l.getBlockY();
+        return this.location.getBlockY();
     }
 
     public int getZ() {
-        return this.l.getBlockZ();
+        return this.location.getBlockZ();
     }
 
     private void setDamageDate() {
@@ -99,33 +98,29 @@ public class DamageBlock {
         this.lastFade = new Date();
     }
 
-    public void setDamage(float damage, Player breaker) {
+    public void setDamage(float damage, @Nullable Player breaker) {
         this.damage = damage;
         this.setDamageDate();
 
-        WorldServer world = ((CraftWorld) this.l.getWorld()).getHandle();
+        WorldServer world = ((CraftWorld) this.location.getWorld()).getHandle();
         BlockPosition pos = new BlockPosition(getX(), getY(), getZ());
 
         // || it is a block with no strength, break immediately
         IBlockData blockData = world.getType(pos);
-        if (damage >= 10 || (damage > 0 && blockData.getBlock().d(blockData, world.b(), pos) <= 0)) {
+        if (damage >= 10 || (damage > 0 && blockData.getBlock().getDurability() <= 0)) {
             this.breakBlock(breaker);
-            return;
         } else {
-            if (damage <= 0)
-                damage = -1;
-
             // Load block "monster", used for displaying the damage on the block
             if (this.entity == null) {
-                this.entity = new EntityChicken(world);
+                this.entity = new EntityChicken(EntityTypes.CHICKEN, world);
                 world.addEntity(entity, SpawnReason.CUSTOM);
             }
 
             // Send damage packet
             if (!this.isNoCancel) {
-                ((CraftServer) Bukkit.getServer()).getHandle().sendPacketNearby(null, getX(), getY(), getZ(), 120, world.dimension,
+                ((CraftServer) Bukkit.getServer()).getHandle().sendPacketNearby(null, getX(), getY(), getZ(), 120, world.getDimensionKey(),
                         new PacketPlayOutBlockBreakAnimation(entity.getId(), pos, (int) this.damage));
-                // Bukkit.getLogger().info("sent damage packet " + this.damage);
+                BetterBlockBreaking.getPlugin().debug("Sent damage packet (" + this.damage + ").");
             }
 
             // Cancel old task
@@ -141,9 +136,9 @@ public class DamageBlock {
     }
 
     public void breakBlock(Player breaker) {
-        Block block = this.l.getBlock();
+        Block block = this.location.getBlock();
         if (breaker != null) {
-            WorldServer world = ((CraftWorld) this.l.getWorld()).getHandle();
+            WorldServer world = ((CraftWorld) this.location.getWorld()).getHandle();
             BlockPosition pos = new BlockPosition(getX(), getY(), getZ());
 
             if (block.getType() != org.bukkit.Material.AIR) {
@@ -165,22 +160,9 @@ public class DamageBlock {
                 } else {
                     this.removeAllDamage();
 
-                    try {
-                        // Play block break sound
-                        Field f = SoundEffectType.class.getDeclaredField("q");
-                        f.setAccessible(true);
-                        SoundEffect soundEffect = (SoundEffect) f.get(world.getType(pos).getBlock().getStepSound());
-
-                        Field f2 = SoundEffect.class.getDeclaredField("b");
-                        f2.setAccessible(true);
-                        MinecraftKey minecraftKey = (MinecraftKey) f2.get(soundEffect);
-
-                        String sound = minecraftKey.getKey();
-                        breaker.getWorld().playSound(new Location(breaker.getWorld(), pos.getX(), pos.getY(), pos.getZ()), sound, 2.0f, 1.0f);
-
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                    // Play block break sound
+                    Sound breakSound = block.getBlockData().getSoundGroup().getBreakSound();
+                    breaker.getWorld().playSound(block.getLocation(), breakSound, 2.0f, 1.0f);
 
                     // Use the proper function to break block, this also applies any effects the item the player is holding has on the block
                     ((CraftPlayer) breaker).getHandle().playerInteractManager.breakBlock(pos);
@@ -204,12 +186,12 @@ public class DamageBlock {
         // Bukkit.getScheduler().cancelTask(showCurrentDamageTaskId);
 
         if (this.entity == null) {
-            this.entity = new EntityChicken(world);
+            this.entity = new EntityChicken(EntityTypes.CHICKEN, world);
             world.addEntity(entity, SpawnReason.CUSTOM);
         }
 
         // Send a damage packet to remove the damage of the block
-        ((CraftServer) Bukkit.getServer()).getHandle().sendPacketNearby(null, this.getX(), this.getY(), this.getZ(), 120, world.dimension,
+        ((CraftServer) Bukkit.getServer()).getHandle().sendPacketNearby(null, this.getX(), this.getY(), this.getZ(), 120, world.getDimensionKey(),
                 new PacketPlayOutBlockBreakAnimation(this.getEntity().getId(), pos, -1));
 
         this.getEntity().die();
@@ -219,5 +201,4 @@ public class DamageBlock {
     public void setEntity(EntityLiving entity) {
         this.entity = entity;
     }
-
 }
