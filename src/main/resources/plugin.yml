@@ -4,3 +4,7 @@ version: "${version}"
 depend: [ProtocolLib]
 softdepend: [WorldGuard, Slimefun]
 api-version: "1.16"
+author: "gustav9797"
+authors:
+  - SamB440
+  - DrkMatr1984
