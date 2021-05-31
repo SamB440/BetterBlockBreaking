@@ -1,4 +1,4 @@
-name: BetterBlockBreaking
+name: "BetterBlockBreaking"
 main: com.github.cheesesoftware.betterblockbreaking.BetterBlockBreaking
 version: "${version}"
 depend: [ProtocolLib]

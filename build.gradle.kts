@@ -59,7 +59,7 @@ if (versionsuffix != null) {
 version = ver + versuffix
 
 group = "com.github.cheesesoftware"
-description = "BetterBlockBreaking"
+description = "BetterBlockBreaking Reborn"
 
 tasks.processResources {
     filesMatching("plugin.yml") {
